@@ -1,34 +1,51 @@
 
-library(tidyverse)
-library(lubridate)
-library(gridExtra)
-library("grid")
-library('here')
-library(readxl)
-library(data.table)
+source('context.R')
 
-
-# by convention give the root folder of the project through an environment variable
-project_root_dir <- here::here()
-if (project_root_dir == "") {project_root_dir <- "/home/rstudio"} 
-
-data_dir <- file.path(here(),'data')
-data_dir
-
+# Read in MBIE Electricity Statistics file, updated quarterly
 url.base <- 'https://www.mbie.govt.nz/assets/Data-Files/Energy/nz-energy-quarterly-and-energy-in-nz/'
 url.file <- 'electricity.xlsx'
 url <- paste0(url.base, url.file)
-
 data.file <- file.path(data_dir, "electricity.xlsx")
 download.file(url, data.file)
 
+# extract sheet names
 sheets <- data.file %>%
   excel_sheets() %>% 
   set_names() 
-class(sheets)
-
+# read all sheets into data.table format (kludgy)
 x <- lapply(sheets, function(X) readxl::read_excel(data.file, sheet = X))
+x <- lapply(x, as.data.table)
+names(x) <- sheets
 
+# Format Annual Statistics (GWh) 'Table 2' the 4th sheet
+dt0 <- x$'Table 2'
+
+# Remove rows of all NA
+dt0 <- dt0[rowSums(is.na(dt0)) != ncol(dt0),]
+# Remove header row
+dt0 <- dt0[-1,]
+# Remove notes
+names(dt0)[1] <- "Row"
+
+dt_notes <-dt0[which(dt0$Row=="Notes:"):nrow(dt0), 1]
+dt0_data <- dt0[1:which(dt0$Row=="Notes:")-1,]
+
+
+dt0$Row
+dt0[,1]
+
+# Transpose for years as rows
+dt = as.data.table(t(as.matrix(dt0_data)))
+
+# Name columns with first row
+names(dt) <- as.character(dt[1,])
+dt<-dt[-1,]
+
+# Remove last annual year change row
+dt<-dt[-which(dt[,1] == "Annual % change")]
+dt <- copy(dt)[, 'Calendar year' := as.numeric(dt$'Calendar year')]
+
+head(dt[,1:4])
 
 
 
