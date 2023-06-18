@@ -40,6 +40,7 @@ op <- options(digits.secs=3)
 #prevent scientific notation
 options(scipen = 999)
 
+stringsAsFactors=FALSE
 #######################################################################
 ###                  DIRECTORY MANAGEMENT
 #######################################################################
